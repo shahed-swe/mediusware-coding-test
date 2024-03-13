@@ -1,9 +1,17 @@
 from django.views import generic
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator,EmptyPage, PageNotAnInteger
 
 from django.views.generic import ListView
 from django.db.models import Prefetch, Q
 from product.models import *
+from product.serializers import ProductSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser
 
 class CreateProductView(generic.TemplateView):
     template_name = 'products/create.html'
@@ -14,8 +22,6 @@ class CreateProductView(generic.TemplateView):
         context['product'] = True
         context['variants'] = list(variants.all())
         return context
-
-    
 
 
 class ProductListView(ListView):
@@ -123,3 +129,80 @@ class ProductListView(ListView):
         context["variants"] = variants
 
         return context
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CreateProductApiView(APIView):
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser,)
+
+    def get_variant_id(self,serializer, input_tag):
+        main_vars = serializer.validated_data["variants"]
+        tag_to_option_mapping = {}
+        for variant in main_vars:
+            option = variant["option"]
+            tags = variant["tags"]
+            for tag in tags:
+                tag_to_option_mapping[tag] = option
+
+        # Retrieve the option for the specified tag
+        option_for_tag = tag_to_option_mapping.get(input_tag)
+        return option_for_tag
+
+    def post(self, request, *args, **kwargs):
+        serializer = ProductSerializer(data=request.data)
+
+        if serializer.is_valid():
+            product = Product.objects.filter(sku=serializer.validated_data["sku"]).first()
+            if product:
+                return Response({"message": "Product SKU is NON-Unique"})
+
+            product = Product.objects.create(
+                title=serializer.validated_data["name"],
+                sku=serializer.validated_data["sku"],
+                description=serializer.validated_data["description"],
+                # Add additional fields as needed
+            )
+
+            allvars_with_price = serializer.validated_data["variantPrices"]
+            try:
+                for variants in allvars_with_price:
+                    title = variants['title']
+                    title_part = title.split("/")
+                    created_variants = []
+                    for var_title in title_part:
+
+                        product_variant = ProductVariant.objects.filter(variant_title=var_title).first()
+                        if not product_variant:
+                            if var_title != "":
+                                variant_id = self.get_variant_id(serializer, var_title)
+                                variant = Variant.objects.get(pk=variant_id)
+                                if variant != None:
+                                    product_variant = ProductVariant.objects.create(
+                                        variant_title=var_title,
+                                        variant=variant,
+                                        product=product,
+                                    )
+                        created_variants.append(product_variant)
+                    product_variant_price = ProductVariantPrice(
+                        price = variants['price'],
+                        stock = variants['stock'],
+                        product=product
+                    )
+                    if created_variants[0] is not None:
+                        product_variant_price.product_variant_one = created_variants[0]
+                    if created_variants[1] is not None:
+                        product_variant_price.product_variant_two = created_variants[1]
+                    if created_variants[2] is not None:
+                        product_variant_price.product_variant_three = created_variants[2]
+
+                    product_variant_price.save()
+
+            except Exception as e:
+                raise APIException(detail="Internal Server Error", code=500)
+            return Response({"message": "Data successfully processed"})
+
+        # Return an error response for invalid data
+        return Response({"error": serializer.errors}, status=400)
