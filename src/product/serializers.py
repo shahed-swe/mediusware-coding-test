@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers
 import json
-
+from .models import Product, ProductVariant, ProductVariantPrice, ProductImage
 
 class JSONStringField(serializers.Field):
     def to_internal_value(self, data):
@@ -22,9 +22,38 @@ class JSONStringField(serializers.Field):
 
 
 class ProductSerializer(serializers.Serializer):
+    id = serializers.CharField()
     name = serializers.CharField()
     sku = serializers.CharField()
     description = serializers.CharField()
     variants = JSONStringField()
     variantPrices = JSONStringField()
     media = serializers.ListField(child=serializers.FileField(), required=False)
+
+
+class ProductVariantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductVariant
+        fields = "__all__"
+
+
+class ProductVariantPriceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductVariantPrice
+        fields = "__all__"
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = "__all__"
+
+
+class ProductDetailSerializer(serializers.ModelSerializer):
+    images = ProductImageSerializer(many=True, read_only=True)
+    variants = ProductVariantSerializer(many=True, read_only=True)
+    variant_prices = ProductVariantPriceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = "__all__"

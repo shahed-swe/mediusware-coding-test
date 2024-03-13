@@ -6,12 +6,15 @@ from django.core.paginator import Paginator,EmptyPage, PageNotAnInteger
 from django.views.generic import ListView
 from django.db.models import Prefetch, Q
 from product.models import *
-from product.serializers import ProductSerializer
+from product.serializers import ProductSerializer, ProductDetailSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
+from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import APIException
+
 
 class CreateProductView(generic.TemplateView):
     template_name = 'products/create.html'
@@ -21,6 +24,17 @@ class CreateProductView(generic.TemplateView):
         variants = Variant.objects.filter(active=True).values('id', 'title')
         context['product'] = True
         context['variants'] = list(variants.all())
+        return context
+
+
+class UpdateProductView(generic.TemplateView):
+    template_name = "products/update.html"
+
+    def get_context_data(self, **kwargs):
+        context = super(UpdateProductView, self).get_context_data(**kwargs)
+        variants = Variant.objects.filter(active=True).values("id", "title")
+        context["product"] = True
+        context["variants"] = list(variants.all())
         return context
 
 
@@ -151,58 +165,125 @@ class CreateProductApiView(APIView):
         option_for_tag = tag_to_option_mapping.get(input_tag)
         return option_for_tag
 
+    def create_product(self, serializer):
+        product = Product.objects.filter(sku=serializer.validated_data["sku"]).first()
+        if product:
+            return Response({"message": "Product SKU is NON-Unique"})
+
+        product = Product.objects.create(
+            title=serializer.validated_data["name"],
+            sku=serializer.validated_data["sku"],
+            description=serializer.validated_data["description"],
+        )
+
+        allvars_with_price = serializer.validated_data["variantPrices"]
+        try:
+            for variants in allvars_with_price:
+                title = variants['title']
+                title_part = title.split("/")
+                created_variants = []
+                for var_title in title_part:
+                    if var_title != "":
+                        variant_id = self.get_variant_id(serializer, var_title)
+                        variant = Variant.objects.get(pk=variant_id)
+                        if variant != None:
+                            product_variant = ProductVariant.objects.create(
+                                variant_title=var_title,
+                                variant=variant,
+                                product=product,
+                                )
+                    created_variants.append(product_variant)
+                product_variant_price = ProductVariantPrice(
+                    price = variants['price'],
+                    stock = variants['stock'],
+                    product=product
+                )
+                if len(created_variants) > 0 and created_variants[0] is not None:
+                    product_variant_price.product_variant_one = created_variants[0]
+
+                if len(created_variants) > 1 and created_variants[1] is not None:
+                    product_variant_price.product_variant_two = created_variants[1]
+
+                if len(created_variants) > 2 and created_variants[2] is not None:
+                    product_variant_price.product_variant_three = created_variants[2]
+
+                product_variant_price.save()
+        except Exception as e:
+            raise APIException(detail=e, code=500)
+
+    def update_product(self, serializer):
+        product = Product.objects.get(pk=serializer.validated_data["id"])
+        product.title = serializer.validated_data["name"]
+        product.sku = serializer.validated_data["sku"]
+        product.description = serializer.validated_data["description"]
+        product.save()
+
+        allvars_with_price = serializer.validated_data["variantPrices"]
+        print(allvars_with_price)
+        try:
+            for variants in allvars_with_price:
+                title = variants['title']
+                title_part = title.split("/")
+                created_variants = []
+                for var_title in title_part:
+                    if var_title != "":
+                        variant_id = self.get_variant_id(serializer, var_title)
+                        variant = Variant.objects.get(pk=variant_id)
+                        if variant != None:
+                            product_variant = ProductVariant.objects.create(
+                                variant_title=var_title,
+                                variant=variant,
+                                product=product,
+                                )
+                    created_variants.append(product_variant)
+                product_variant_price = ProductVariantPrice(
+                    price = variants['price'],
+                    stock = variants['stock'],
+                    product=product
+                )
+                if len(created_variants) > 0 and created_variants[0] is not None:
+                    product_variant_price.product_variant_one = created_variants[0]
+
+                if len(created_variants) > 1 and created_variants[1] is not None:
+                    product_variant_price.product_variant_two = created_variants[1]
+
+                if len(created_variants) > 2 and created_variants[2] is not None:
+                    product_variant_price.product_variant_three = created_variants[2]
+
+                product_variant_price.save()
+        except Exception as e:
+            raise APIException(detail=e, code=500)
+
     def post(self, request, *args, **kwargs):
         serializer = ProductSerializer(data=request.data)
 
         if serializer.is_valid():
-            product = Product.objects.filter(sku=serializer.validated_data["sku"]).first()
-            if product:
-                return Response({"message": "Product SKU is NON-Unique"})
+            print(serializer)
+            if serializer.validated_data["id"]:
+                self.update_product(serializer)
+            else:
+                self.create_product(serializer)
 
-            product = Product.objects.create(
-                title=serializer.validated_data["name"],
-                sku=serializer.validated_data["sku"],
-                description=serializer.validated_data["description"],
-                # Add additional fields as needed
-            )
-
-            allvars_with_price = serializer.validated_data["variantPrices"]
-            try:
-                for variants in allvars_with_price:
-                    title = variants['title']
-                    title_part = title.split("/")
-                    created_variants = []
-                    for var_title in title_part:
-
-                        product_variant = ProductVariant.objects.filter(variant_title=var_title).first()
-                        if not product_variant:
-                            if var_title != "":
-                                variant_id = self.get_variant_id(serializer, var_title)
-                                variant = Variant.objects.get(pk=variant_id)
-                                if variant != None:
-                                    product_variant = ProductVariant.objects.create(
-                                        variant_title=var_title,
-                                        variant=variant,
-                                        product=product,
-                                    )
-                        created_variants.append(product_variant)
-                    product_variant_price = ProductVariantPrice(
-                        price = variants['price'],
-                        stock = variants['stock'],
-                        product=product
-                    )
-                    if created_variants[0] is not None:
-                        product_variant_price.product_variant_one = created_variants[0]
-                    if created_variants[1] is not None:
-                        product_variant_price.product_variant_two = created_variants[1]
-                    if created_variants[2] is not None:
-                        product_variant_price.product_variant_three = created_variants[2]
-
-                    product_variant_price.save()
-
-            except Exception as e:
-                raise APIException(detail="Internal Server Error", code=500)
             return Response({"message": "Data successfully processed"})
 
         # Return an error response for invalid data
         return Response({"error": serializer.errors}, status=400)
+
+
+class ProductDetailView(APIView):
+
+    def get(self, request, product_id, *args, **kwargs):
+        try:
+            product = Product.objects.get(pk=product_id)
+
+            serializer = ProductDetailSerializer(product)
+
+            return Response(serializer.data)
+
+        except Product.DoesNotExist:
+            return Response(
+                {"error": f"Product with id {product_id} does not exist"}, status=404
+            )
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({"error": "Internal Server Error"}, status=500)

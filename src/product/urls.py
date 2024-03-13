@@ -5,6 +5,8 @@ from product.views.product import (
     CreateProductView,
     ProductListView,
     CreateProductApiView,
+    UpdateProductView,
+    ProductDetailView,
 )
 from product.views.variant import VariantView, VariantCreateView, VariantEditView
 
@@ -20,5 +22,11 @@ urlpatterns = [
     path("list/", ProductListView.as_view(), name="list.product"),
     path(
         "api/create_product/", CreateProductApiView.as_view(), name="create_product_api"
+    ),
+    path("update/<int:id>/", UpdateProductView.as_view(), name="update.product"),
+    path(
+        "api/update/<int:product_id>/",
+        ProductDetailView.as_view(),
+        name="product-detail",
     ),
 ]

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import TagsInput from 'react-tagsinput';
 import 'react-tagsinput/react-tagsinput.css';
 import Dropzone from 'react-dropzone'
@@ -10,13 +10,63 @@ const CreateProduct = (props) => {
     const [description, setDescription] = useState("")
     const [productVariantPrices, setProductVariantPrices] = useState([])
     const [mediaFiles, setFiles] = useState([])
-
     const [productVariants, setProductVariant] = useState([
         {
             option: 1,
             tags: []
         }
     ])
+
+    const fetchProductData = useCallback(async (id) => {
+        const response = await axios.get(`/product/api/update/${id}/`)
+        if (response.status == 200) {
+            const data = response.data
+            console.log(data.title)
+            setProductName(data.title)
+            setProductSku(data.sku)
+            setDescription(data.description)
+            const productVariantsNew = [
+                {
+                    option: 1,
+                    tags: data.variants.filter(value => value.variant == 1).map(value => value.variant_title)
+                },
+                {
+                    option: 2,
+                    tags: data.variants.filter(value => value.variant == 2).map(value => value.variant_title)
+                },
+                {
+                    option: 3,
+                    tags: data.variants.filter(value => value.variant == 3).map(value => value.variant_title)
+                }
+            ]
+            setProductVariant(productVariantsNew)
+            const variant_prices = data.variant_prices.map(item => {
+                const variantOne = data.variants.find(value => value.id == item.product_variant_one)?.variant_title
+                const variantTwo = data.variants.find(value => value.id == item.product_variant_two)?.variant_title
+                const variantThree = data.variants.find(value => value.id == item.product_variant_three)?.variant_title
+
+                return {
+                    id: item.id,
+                    title: `${variantOne ?? ""}/${variantTwo ?? ""}/${variantThree ?? ""}`,
+                    price: item.price,
+                    stock: item.stock
+                }
+            })
+
+            setProductVariantPrices(variant_prices)
+
+
+        }
+    }, [])
+
+    useEffect(() => {
+        if (window.location.pathname.split("/")[3] != null && window.location.pathname.split("/")[3] != undefined) {
+            const id = window.location.pathname.split("/")[3]
+            if (id) {
+                fetchProductData(id)
+            }
+        }
+    }, [window])
     // handle click event of the Add button
     const handleAddClick = () => {
         let all_variants = JSON.parse(props.variants.replaceAll("'", '"')).map(el => el.id)
@@ -111,7 +161,7 @@ const CreateProduct = (props) => {
 
 
         const formData = new FormData();
-        
+
 
         formData.append('name', productName);
         formData.append('sku', productSku);
@@ -128,13 +178,13 @@ const CreateProduct = (props) => {
             formData.append(`media_${index}`, file);
         });
 
-        
 
         const csrftoken = getCookie('csrftoken');
+        if (window.location.pathname.split("/")[3] != null && window.location.pathname.split("/")[3] != undefined){
+            formData.append('id', window.location.pathname.split("/")[3]);
+        }
         try {
-            const headers = {
-                'X-CSRFToken': csrftoken,
-            }
+            
             const response = axios.post("/product/api/create_product/", formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
@@ -145,8 +195,9 @@ const CreateProduct = (props) => {
                 console.log(response)
             }
         } catch (error) {
-            console.log(response)
+            console.log(error)
         }
+
     }
 
 
