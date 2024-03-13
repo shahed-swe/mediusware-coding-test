@@ -12,12 +12,22 @@
     <form action="" method="get" class="card-header">
         <div class="form-row justify-content-between">
             <div class="col-md-2">
-                <input type="text" name="title" placeholder="Product Title" class="form-control">
+                <input type="text" name="title" value="{{title_filter}}" placeholder="Product Title"
+                    class="form-control">
             </div>
             <div class="col-md-2">
                 <select name="variant" id="" class="form-control">
-                    <option selected disabled>--Select A Variant--</option>
-
+                    <option selected value="">--Select A Variant--</option>
+                    {% for rootvariant in variants %}
+                    <option disabled>{{rootvariant.title}}</option>
+                    {% for variant in rootvariant.productvariants %}
+                    {% if variant.variant_title == variant_filter %}
+                    <option selected value="{{variant.variant_title}}">{{variant.variant_title}}</option>
+                    {%else%}
+                    <option value="{{variant.variant_title}}">{{variant.variant_title}}</option>
+                    {% endif %}
+                    {%endfor%}
+                    {% endfor %}
                 </select>
             </div>
 
@@ -26,16 +36,18 @@
                     <div class="input-group-prepend">
                         <span class="input-group-text">Price Range</span>
                     </div>
-                    <input type="text" name="price_from" aria-label="First name" placeholder="From"
-                        class="form-control">
-                    <input type="text" name="price_to" aria-label="Last name" placeholder="To" class="form-control">
+                    <input type="text" value="{{min_price_filter}}" name="price_from" aria-label="First name"
+                        placeholder="From" class="form-control">
+                    <input type="text" value="{{max_price_filter}}" name="price_to" aria-label="Last name"
+                        placeholder="To" class="form-control">
                 </div>
             </div>
             <div class="col-md-2">
                 <input type="date" name="date" placeholder="Date" class="form-control">
             </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-primary float-right"><i class="fa fa-search"></i></button>
+            <div class="col-md-1 d-flex">
+                <button type="submit" class="btn btn-primary float-right ml-2"><i class="fa fa-search"></i></button>
+                <a class="btn btn-primary float-right ml-1" href="/product/list">X</a>
             </div>
         </div>
     </form>
@@ -133,7 +145,7 @@
                     </li>
                     {% else %}
                     <li class="page-item">
-                        <a class="page-link"  href=""><small>&gt;</small></a>
+                        <a class="page-link" href=""><small>&gt;</small></a>
                     </li>
                     {% endif %}
 
