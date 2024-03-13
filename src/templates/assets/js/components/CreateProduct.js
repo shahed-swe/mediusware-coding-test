@@ -14,7 +14,6 @@ const CreateProduct = (props) => {
             tags: []
         }
     ])
-    console.log(typeof props.variants)
     // handle click event of the Add button
     const handleAddClick = () => {
         let all_variants = JSON.parse(props.variants.replaceAll("'", '"')).map(el => el.id)
