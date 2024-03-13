@@ -32811,17 +32811,29 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
 
 var CreateProduct = function CreateProduct(props) {
-  var _useState = Object(react__WEBPACK_IMPORTED_MODULE_0__["useState"])([]),
+  var _useState = Object(react__WEBPACK_IMPORTED_MODULE_0__["useState"])(""),
     _useState2 = _slicedToArray(_useState, 2),
-    productVariantPrices = _useState2[0],
-    setProductVariantPrices = _useState2[1];
-  var _useState3 = Object(react__WEBPACK_IMPORTED_MODULE_0__["useState"])([{
+    productName = _useState2[0],
+    setProductName = _useState2[1];
+  var _useState3 = Object(react__WEBPACK_IMPORTED_MODULE_0__["useState"])(""),
+    _useState4 = _slicedToArray(_useState3, 2),
+    productSku = _useState4[0],
+    setProductSku = _useState4[1];
+  var _useState5 = Object(react__WEBPACK_IMPORTED_MODULE_0__["useState"])(""),
+    _useState6 = _slicedToArray(_useState5, 2),
+    description = _useState6[0],
+    setDescription = _useState6[1];
+  var _useState7 = Object(react__WEBPACK_IMPORTED_MODULE_0__["useState"])([]),
+    _useState8 = _slicedToArray(_useState7, 2),
+    productVariantPrices = _useState8[0],
+    setProductVariantPrices = _useState8[1];
+  var _useState9 = Object(react__WEBPACK_IMPORTED_MODULE_0__["useState"])([{
       option: 1,
       tags: []
     }]),
-    _useState4 = _slicedToArray(_useState3, 2),
-    productVariants = _useState4[0],
-    setProductVariant = _useState4[1];
+    _useState10 = _slicedToArray(_useState9, 2),
+    productVariants = _useState10[0],
+    setProductVariant = _useState10[1];
   // handle click event of the Add button
   var handleAddClick = function handleAddClick() {
     var all_variants = JSON.parse(props.variants.replaceAll("'", '"')).map(function (el) {
@@ -32889,6 +32901,17 @@ var CreateProduct = function CreateProduct(props) {
   // Save product
   var saveProduct = function saveProduct(event) {
     event.preventDefault();
+    var mediaFiles = []; // Add logic to collect media files if needed
+
+    var productData = {
+      name: productName,
+      sku: productSku,
+      description: description,
+      variants: productVariants,
+      variantPrices: productVariantPrices,
+      media: mediaFiles
+    };
+    console.log('Product Data:', productData);
     // TODO : write your code here to save the product
   };
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("section", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
@@ -32904,6 +32927,8 @@ var CreateProduct = function CreateProduct(props) {
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("label", {
     htmlFor: ""
   }, "Product Name"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("input", {
+    value: productName,
+    onChange: setProductName,
     type: "text",
     placeholder: "Product Name",
     className: "form-control"
@@ -32912,6 +32937,8 @@ var CreateProduct = function CreateProduct(props) {
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("label", {
     htmlFor: ""
   }, "Product SKU"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("input", {
+    value: productSku,
+    onChange: setProductSku,
     type: "text",
     placeholder: "Product Name",
     className: "form-control"
@@ -32920,7 +32947,8 @@ var CreateProduct = function CreateProduct(props) {
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("label", {
     htmlFor: ""
   }, "Description"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("textarea", {
-    id: "",
+    value: description,
+    onChange: setDescription,
     cols: "30",
     rows: "4",
     className: "form-control"

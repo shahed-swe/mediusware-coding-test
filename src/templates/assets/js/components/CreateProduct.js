@@ -5,7 +5,9 @@ import Dropzone from 'react-dropzone'
 
 
 const CreateProduct = (props) => {
-
+    const [productName, setProductName] = useState("")
+    const [productSku, setProductSku] = useState("")
+    const [description, setDescription] = useState("")
     const [productVariantPrices, setProductVariantPrices] = useState([])
 
     const [productVariants, setProductVariant] = useState([
@@ -76,6 +78,19 @@ const CreateProduct = (props) => {
     // Save product
     let saveProduct = (event) => {
         event.preventDefault();
+
+        const mediaFiles = []; // Add logic to collect media files if needed
+
+        const productData = {
+            name: productName,
+            sku: productSku,
+            description: description,
+            variants: productVariants,
+            variantPrices: productVariantPrices,
+            media: mediaFiles,
+        };
+
+        console.log('Product Data:', productData);
         // TODO : write your code here to save the product
     }
 
@@ -89,15 +104,15 @@ const CreateProduct = (props) => {
                             <div className="card-body">
                                 <div className="form-group">
                                     <label htmlFor="">Product Name</label>
-                                    <input type="text" placeholder="Product Name" className="form-control"/>
+                                    <input value={productName} onChange={setProductName} type="text" placeholder="Product Name" className="form-control"/>
                                 </div>
                                 <div className="form-group">
                                     <label htmlFor="">Product SKU</label>
-                                    <input type="text" placeholder="Product Name" className="form-control"/>
+                                    <input value={productSku} onChange={setProductSku} type="text" placeholder="Product Name" className="form-control"/>
                                 </div>
                                 <div className="form-group">
                                     <label htmlFor="">Description</label>
-                                    <textarea id="" cols="30" rows="4" className="form-control"></textarea>
+                                    <textarea value={description} onChange={setDescription} cols="30" rows="4" className="form-control"></textarea>
                                 </div>
                             </div>
                         </div>

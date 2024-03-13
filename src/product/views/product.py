@@ -15,6 +15,8 @@ class CreateProductView(generic.TemplateView):
         context['variants'] = list(variants.all())
         return context
 
+    
+
 
 class ProductListView(ListView):
     model = Product
