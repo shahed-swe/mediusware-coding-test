@@ -14,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import APIException
+from django.db import transaction
 
 
 class CreateProductView(generic.TemplateView):
@@ -161,7 +162,6 @@ class CreateProductApiView(APIView):
             for tag in tags:
                 tag_to_option_mapping[tag] = option
 
-        # Retrieve the option for the specified tag
         option_for_tag = tag_to_option_mapping.get(input_tag)
         return option_for_tag
 
@@ -177,40 +177,44 @@ class CreateProductApiView(APIView):
         )
 
         allvars_with_price = serializer.validated_data["variantPrices"]
-        try:
-            for variants in allvars_with_price:
-                title = variants['title']
-                title_part = title.split("/")
-                created_variants = []
-                for var_title in title_part:
-                    if var_title != "":
-                        variant_id = self.get_variant_id(serializer, var_title)
-                        variant = Variant.objects.get(pk=variant_id)
-                        if variant != None:
-                            product_variant = ProductVariant.objects.create(
-                                variant_title=var_title,
-                                variant=variant,
-                                product=product,
-                                )
-                    created_variants.append(product_variant)
-                product_variant_price = ProductVariantPrice(
-                    price = variants['price'],
-                    stock = variants['stock'],
+        variants = serializer.validated_data["variants"]
+
+        # saving variant
+        variant_mapping = {}
+        for variant in variants:
+            option = variant['option']
+            tags = variant['tags']
+            for tag in tags:
+                # Ensure Variant exists
+                variant_obj = Variant.objects.get(pk=option)
+                # Ensure ProductVariant exists
+                product_variant = ProductVariant.objects.create(
+                    variant_title=f"{tag}",
+                    variant=variant_obj,
                     product=product
                 )
-                if len(created_variants) > 0 and created_variants[0] is not None:
-                    product_variant_price.product_variant_one = created_variants[0]
+                variant_mapping[f"{option}-{tag}"] = product_variant
 
-                if len(created_variants) > 1 and created_variants[1] is not None:
-                    product_variant_price.product_variant_two = created_variants[1]
+        for variant_price in allvars_with_price:
+            title = variant_price['title']
+            price = variant_price['price']
+            stock = variant_price['stock']
+            # Split the title to get variant tags, assuming format "size/color/"
+            tags = title.split('/')[:-1]  # Remove the last empty item due to trailing '/'
 
-                if len(created_variants) > 2 and created_variants[2] is not None:
-                    product_variant_price.product_variant_three = created_variants[2]
+            # Map tags to ProductVariant instances
+            product_variants = [variant_mapping.get(f"{idx+1}-{tag}") for idx, tag in enumerate(tags)]
 
-                product_variant_price.save()
-        except Exception as e:
-            raise APIException(detail=e, code=500)
+            ProductVariantPrice.objects.create(
+                product_variant_one=product_variants[0] if len(product_variants) > 0 else None,
+                product_variant_two=product_variants[1] if len(product_variants) > 1 else None,
+                product_variant_three=product_variants[2] if len(product_variants) > 2 else None,
+                price=price,
+                stock=stock,
+                product=product
+            )
 
+    @transaction.atomic
     def update_product(self, serializer):
         product = Product.objects.get(pk=serializer.validated_data["id"])
         product.title = serializer.validated_data["name"]
@@ -219,38 +223,40 @@ class CreateProductApiView(APIView):
         product.save()
 
         allvars_with_price = serializer.validated_data["variantPrices"]
-        print(allvars_with_price)
+        variants = serializer.validated_data["variants"]
         try:
-            for variants in allvars_with_price:
-                title = variants['title']
-                title_part = title.split("/")
-                created_variants = []
-                for var_title in title_part:
-                    if var_title != "":
-                        variant_id = self.get_variant_id(serializer, var_title)
-                        variant = Variant.objects.get(pk=variant_id)
-                        if variant != None:
-                            product_variant = ProductVariant.objects.create(
-                                variant_title=var_title,
-                                variant=variant,
-                                product=product,
-                                )
-                    created_variants.append(product_variant)
-                product_variant_price = ProductVariantPrice(
-                    price = variants['price'],
-                    stock = variants['stock'],
-                    product=product
+            variant_mapping = {}
+            for variant in variants:
+                option = variant['option']
+                tags = variant['tags']
+                for tag in tags:
+                    variant_obj, created = Variant.objects.get_or_create(title=tag)
+                    product_variant, created = ProductVariant.objects.get_or_create(
+                        variant=variant_obj, 
+                        product=product,
+                        defaults={'variant_title': f"{tag}"}
+                    )
+                    if not created:
+                        # Update logic here if needed
+                        pass
+                    variant_mapping[f"{option}-{tag}"] = product_variant
+
+            for variant_price in allvars_with_price:
+                title = variant_price['title']
+                price = variant_price['price']
+                stock = variant_price['stock']
+                tags = title.split('/')[:-1]  
+
+                product_variants = [variant_mapping.get(f"{idx+1}-{tag}") for idx, tag in enumerate(tags)]
+                _, created = ProductVariantPrice.objects.update_or_create(
+                    product=product,
+                    product_variant_one=product_variants[0] if len(product_variants) > 0 else None,
+                    product_variant_two=product_variants[1] if len(product_variants) > 1 else None,
+                    product_variant_three=product_variants[2] if len(product_variants) > 2 else None,
+                    defaults={'price': price, 'stock': stock}
                 )
-                if len(created_variants) > 0 and created_variants[0] is not None:
-                    product_variant_price.product_variant_one = created_variants[0]
-
-                if len(created_variants) > 1 and created_variants[1] is not None:
-                    product_variant_price.product_variant_two = created_variants[1]
-
-                if len(created_variants) > 2 and created_variants[2] is not None:
-                    product_variant_price.product_variant_three = created_variants[2]
-
-                product_variant_price.save()
+                if not created:
+                    pass
         except Exception as e:
             raise APIException(detail=e, code=500)
 
@@ -258,8 +264,8 @@ class CreateProductApiView(APIView):
         serializer = ProductSerializer(data=request.data)
 
         if serializer.is_valid():
-            print(serializer)
-            if serializer.validated_data["id"]:
+            product_id = serializer.validated_data.get("id", None)
+            if product_id:
                 self.update_product(serializer)
             else:
                 self.create_product(serializer)

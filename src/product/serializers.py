@@ -22,7 +22,7 @@ class JSONStringField(serializers.Field):
 
 
 class ProductSerializer(serializers.Serializer):
-    id = serializers.CharField()
+    id = serializers.CharField(required=False)
     name = serializers.CharField()
     sku = serializers.CharField()
     description = serializers.CharField()
